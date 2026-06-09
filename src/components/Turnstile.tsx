@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTheme } from 'next-themes';
 
 interface TurnstileProps {
@@ -36,6 +36,7 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
     const widgetIdRef = useRef<string | null>(null);
     const isRenderedRef = useRef(false);
     const { theme, systemTheme } = useTheme();
+    const [isLoaded, setIsLoaded] = useState(false);
 
     const onVerifyRef = useRef(onVerify);
     const onErrorRef = useRef(onError);
@@ -66,21 +67,27 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
     }, []);
 
     useEffect(() => {
+        if (!siteKey) return;
+
         const scriptId = 'cloudflare-turnstile-script';
         let script = document.getElementById(scriptId) as HTMLScriptElement;
 
         const renderWidget = () => {
             if (window.turnstile && containerRef.current && !widgetIdRef.current) {
                 const currentTheme = theme === 'system' ? systemTheme : theme;
-                widgetIdRef.current = window.turnstile.render(containerRef.current, {
-                    sitekey: siteKey,
-                    callback: handleVerify,
-                    'error-callback': handleError,
-                    'expired-callback': handleExpire,
-                    theme: currentTheme === 'dark' ? 'dark' : 'light',
-                    appearance: 'always',
-                });
-                isRenderedRef.current = true;
+                try {
+                    widgetIdRef.current = window.turnstile.render(containerRef.current, {
+                        sitekey: siteKey,
+                        callback: handleVerify,
+                        'error-callback': handleError,
+                        'expired-callback': handleExpire,
+                        theme: currentTheme === 'dark' ? 'dark' : 'light',
+                        appearance: 'always',
+                    });
+                    isRenderedRef.current = true;
+                } catch (error) {
+                    console.error('Turnstile render error:', error);
+                }
             }
         };
 
@@ -91,23 +98,52 @@ export default function Turnstile({ siteKey, onVerify, onError, onExpire }: Turn
             script.async = true;
             script.defer = true;
             document.body.appendChild(script);
-            script.onload = renderWidget;
+            script.onload = () => {
+                setIsLoaded(true);
+                renderWidget();
+            };
         } else {
             if (window.turnstile) {
+                setIsLoaded(true);
                 renderWidget();
             } else {
-                script.addEventListener('load', renderWidget);
+                script.addEventListener('load', () => {
+                    setIsLoaded(true);
+                    renderWidget();
+                });
             }
         }
 
         return () => {
             if (widgetIdRef.current && window.turnstile) {
-                window.turnstile.remove(widgetIdRef.current);
+                try {
+                    window.turnstile.remove(widgetIdRef.current);
+                } catch (error) {
+                    console.error('Turnstile remove error:', error);
+                }
                 widgetIdRef.current = null;
                 isRenderedRef.current = false;
             }
         };
-    }, [siteKey, handleVerify, handleError, handleExpire, theme, systemTheme]);
+    }, [siteKey]);
+
+    // Handle theme changes separately to avoid re-rendering the widget
+    useEffect(() => {
+        if (widgetIdRef.current && window.turnstile && isLoaded) {
+            const currentTheme = theme === 'system' ? systemTheme : theme;
+            // Note: Turnstile doesn't support dynamic theme changes after render
+            // We would need to remove and re-render, but that can cause issues
+            // For now, we'll keep the initial theme
+        }
+    }, [theme, systemTheme, isLoaded]);
+
+    if (!siteKey) {
+        return (
+            <div className="flex justify-center my-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
+                Turnstile site key is not configured
+            </div>
+        );
+    }
 
     return (
         <div

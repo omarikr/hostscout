@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
 export const metadata: Metadata = {
-  title: "HostScout - Hosting Reviews",
+  title: "HostScout",
   description: "Discover and review the best hosting providers",
   icons: {
     icon: "/icon.png",

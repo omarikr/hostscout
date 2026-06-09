@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GlassyButton } from '@/components/ui/glassy-button';
 import { ThumbsUp, ThumbsDown, Eye, MessageCircle, Heart, Trash2, Send, Tag } from 'lucide-react';
 
 interface PostDetailProps {
@@ -271,13 +272,13 @@ export function PostDetail({ post }: PostDetailProps) {
                     placeholder="Write a reply..."
                     className="flex-1"
                   />
-                  <Button
+                  <GlassyButton
                     onClick={() => handleReply(comment.id)}
-                    size="sm"
+                    className="h-8 px-4 py-2 text-sm"
                   >
                     <Send className="h-4 w-4 mr-1" />
                     Reply
-                  </Button>
+                  </GlassyButton>
                 </div>
               )}
             </div>
@@ -361,14 +362,13 @@ export function PostDetail({ post }: PostDetailProps) {
                 placeholder="Write a comment... Use @username to mention someone"
                 className="w-full px-4 py-3 border rounded-lg bg-background dark:bg-background/50 min-h-[100px]"
               />
-              <Button
+              <GlassyButton
                 onClick={handleSubmitComment}
                 className="mt-2"
-                variant="metal"
               >
                 <Send className="h-4 w-4 mr-2" />
                 Post Comment
-              </Button>
+              </GlassyButton>
             </div>
           ) : (
             <p className="mb-6 text-muted-foreground">
