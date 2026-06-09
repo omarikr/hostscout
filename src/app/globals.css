@@ -49,10 +49,7 @@
   }
 
   .dark body {
-    background-image: url('https://panel.voidnodes.xyz/background.pngs');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    background-color: #0a0a0a;
   }
 }
 

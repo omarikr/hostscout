@@ -45,7 +45,7 @@ export function RegisterForm() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black p-4">
       <div className="w-full max-w-2xl">
-        <Card className="border-2 shadow-2xl backdrop-blur-sm bg-white/70 dark:bg-black/70 p-8" style={{ borderRadius: '32px' }}>
+        <Card className="border-0 shadow-none backdrop-blur-none bg-transparent p-8" style={{ borderRadius: '32px' }}>
           <div className="text-center mb-8">
             <img src="/icon.png" alt="HostScout" className="h-20 w-20 mx-auto mb-4" />
             <h1 className="text-4xl font-bold">Create an account</h1>

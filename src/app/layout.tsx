@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/Navbar";
 import TurnstileGate from "@/components/TurnstileGate";
+import { BackgroundPaths } from "@/components/BackgroundPaths";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <ThemeProvider>
           <TurnstileGate />
           <div id="toast-container" />
+          <BackgroundPaths />
           <Navbar />
           <main className="min-h-screen">
             {children}
