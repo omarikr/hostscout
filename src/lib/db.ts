@@ -7,23 +7,39 @@ let db: Database.Database | null = null;
 
 function getDB() {
   if (!db) {
-    const dbPath = path.join(process.cwd(), 'hostscout.db');
-    const dbDir = path.dirname(dbPath);
-    
-    // Ensure directory exists
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
+    try {
+      // Skip database initialization during build time
+      if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'test') {
+        throw new Error('Database not available during build');
+      }
+
+      const dbPath = path.join(process.cwd(), 'hostscout.db');
+      const dbDir = path.dirname(dbPath);
+      
+      // Ensure directory exists
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+      
+      db = new Database(dbPath, { 
+        verbose: process.env.NODE_ENV === 'development' ? console.log : undefined 
+      });
+      
+      // Initialize database schema
+      initDB();
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      throw new Error('Database initialization failed');
     }
-    
-    db = new Database(dbPath);
   }
   return db;
 }
 
 // Initialize database schema
 export function initDB() {
-  const database = getDB();
-  database.exec(`
+  try {
+    const database = getDB();
+    database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
@@ -131,6 +147,10 @@ export function initDB() {
       INSERT OR IGNORE INTO users (email, username, password, name, isAdmin)
       VALUES (?, ?, ?, ?, 1)
     `).run('omaralt4747@gmail.com', 'omaralt4747', hashedPassword, 'Omar Nasir');
+  }
+  } catch (error) {
+    console.error('Failed to initialize database schema:', error);
+    throw error;
   }
 }
 

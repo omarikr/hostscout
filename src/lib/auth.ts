@@ -59,31 +59,36 @@ export async function createSession(user: any): Promise<Session> {
 }
 
 export async function getServerSession(): Promise<Session | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
-  
-  if (!sessionCookie) return null;
-  
   try {
-    const session = JSON.parse(sessionCookie.value);
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session');
     
-    // Refresh user data from DB
-    const user = getUserById(session.id);
-    if (!user) {
-      await deleteSession();
+    if (!sessionCookie) return null;
+    
+    try {
+      const session = JSON.parse(sessionCookie.value);
+      
+      // Refresh user data from DB
+      const user = getUserById(session.id);
+      if (!user) {
+        await deleteSession();
+        return null;
+      }
+      
+      return {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        isAdmin: user.isAdmin === 1,
+        isSuspended: user.isSuspended === 1,
+        suspensionReason: user.suspensionReason,
+      };
+    } catch {
       return null;
     }
-    
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      name: user.name,
-      isAdmin: user.isAdmin === 1,
-      isSuspended: user.isSuspended === 1,
-      suspensionReason: user.suspensionReason,
-    };
-  } catch {
+  } catch (error) {
+    console.error('Failed to get server session:', error);
     return null;
   }
 }

@@ -21,6 +21,10 @@ export default function TurnstileGate() {
     script.async = true;
     script.defer = true;
     script.onload = () => setIsScriptLoaded(true);
+    script.onerror = () => {
+      console.error('Failed to load Turnstile script');
+      setIsScriptLoaded(false);
+    };
     document.head.appendChild(script);
 
     return () => {

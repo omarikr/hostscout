@@ -4,26 +4,38 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { Metadata } from "next";
 
 export async function generateMetadata({ params }: { params: { username: string } }): Promise<Metadata> {
-  const user = await getUserByUsername(params.username);
-  
-  if (!user) {
+  try {
+    const user = await getUserByUsername(params.username);
+    
+    if (!user) {
+      return {
+        title: "User Not Found",
+      };
+    }
+
     return {
-      title: "User Not Found",
+      title: `${user.name} (@${user.username}) - HostScout`,
+      description: user.bio || `View ${user.name}'s profile on HostScout`,
+    };
+  } catch (error) {
+    console.error('Failed to generate metadata for user:', error);
+    return {
+      title: "User Profile",
     };
   }
-
-  return {
-    title: `${user.name} (@${user.username}) - HostScout`,
-    description: user.bio || `View ${user.name}'s profile on HostScout`,
-  };
 }
 
 export default async function UserProfile({ params }: { params: { username: string } }) {
-  const user = await getUserByUsername(params.username);
+  try {
+    const user = await getUserByUsername(params.username);
 
-  if (!user) {
+    if (!user) {
+      notFound();
+    }
+
+    return <ProfilePage user={user} />;
+  } catch (error) {
+    console.error('Failed to load user profile:', error);
     notFound();
   }
-
-  return <ProfilePage user={user} />;
 }

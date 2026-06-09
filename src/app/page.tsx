@@ -8,8 +8,18 @@ export default async function Home({
 }: {
   searchParams: { search?: string; tag?: string };
 }) {
-  const posts = await getFilteredPosts(searchParams.search, searchParams.tag ? parseInt(searchParams.tag) : undefined);
-  const tags = await getAllTags();
+  let posts: any[] = [];
+  let tags: any[] = [];
+
+  try {
+    posts = await getFilteredPosts(searchParams.search, searchParams.tag ? parseInt(searchParams.tag) : undefined);
+    tags = await getAllTags();
+  } catch (error) {
+    console.error('Failed to load posts or tags:', error);
+    // Return empty arrays if database fails
+    posts = [];
+    tags = [];
+  }
 
   const postsWithTags = posts.map(post => ({
     ...post,

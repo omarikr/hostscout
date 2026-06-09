@@ -3,11 +3,16 @@ import { getServerSession } from "@/lib/auth";
 import { AdminPanel } from "@/components/AdminPanel";
 
 export default async function AdminPage() {
-  const session = await getServerSession();
+  try {
+    const session = await getServerSession();
 
-  if (!session || !session.isAdmin) {
+    if (!session || !session.isAdmin) {
+      redirect("/");
+    }
+
+    return <AdminPanel />;
+  } catch (error) {
+    console.error('Failed to load admin page:', error);
     redirect("/");
   }
-
-  return <AdminPanel />;
 }
