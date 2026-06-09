@@ -1,13 +1,29 @@
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import path from 'path';
+import fs from 'fs';
 
-const dbPath = path.join(process.cwd(), 'hostscout.db');
-const db = new Database(dbPath);
+let db: Database.Database | null = null;
+
+function getDB() {
+  if (!db) {
+    const dbPath = path.join(process.cwd(), 'hostscout.db');
+    const dbDir = path.dirname(dbPath);
+    
+    // Ensure directory exists
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    
+    db = new Database(dbPath);
+  }
+  return db;
+}
 
 // Initialize database schema
 export function initDB() {
-  db.exec(`
+  const database = getDB();
+  database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
@@ -102,16 +118,16 @@ export function initDB() {
 
   // Add missing columns if they don't exist (migration for existing databases)
   try {
-    db.prepare(`ALTER TABLE posts ADD COLUMN pinned INTEGER DEFAULT 0`).run();
+    database.prepare(`ALTER TABLE posts ADD COLUMN pinned INTEGER DEFAULT 0`).run();
   } catch (e) {
     // Column already exists, ignore error
   }
 
   // Create default admin if not exists
-  const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get('omaralt4747@gmail.com');
+  const adminExists = database.prepare('SELECT id FROM users WHERE email = ?').get('omaralt4747@gmail.com');
   if (!adminExists) {
     const hashedPassword = bcrypt.hashSync('OmarNasir7890', 10);
-    db.prepare(`
+    database.prepare(`
       INSERT OR IGNORE INTO users (email, username, password, name, isAdmin)
       VALUES (?, ?, ?, ?, 1)
     `).run('omaralt4747@gmail.com', 'omaralt4747', hashedPassword, 'Omar Nasir');
@@ -120,8 +136,9 @@ export function initDB() {
 
 // User operations
 export function createUser(email: string, username: string, password: string, name?: string) {
+  const database = getDB();
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const stmt = db.prepare(`
+  const stmt = database.prepare(`
     INSERT INTO users (email, username, password, name)
     VALUES (?, ?, ?, ?)
   `);
@@ -130,15 +147,18 @@ export function createUser(email: string, username: string, password: string, na
 }
 
 export function getUserByEmail(email: string) {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+  const database = getDB();
+  return database.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
 }
 
 export function getUserByUsername(username: string) {
-  return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
+  const database = getDB();
+  return database.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
 }
 
 export function getUserById(id: number) {
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  const database = getDB();
+  return database.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
 }
 
 export function updateUser(id: number, data: { name?: string; bio?: string; pronouns?: string; avatar?: string; username?: string }) {
@@ -154,28 +174,34 @@ export function updateUser(id: number, data: { name?: string; bio?: string; pron
   if (fields.length === 0) return;
   
   values.push(id);
-  db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  const database = getDB();
+  database.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...values);
 }
 
 export function suspendUser(id: number, reason: string) {
-  db.prepare('UPDATE users SET isSuspended = 1, suspensionReason = ? WHERE id = ?').run(reason, id);
+  const database = getDB();
+  database.prepare('UPDATE users SET isSuspended = 1, suspensionReason = ? WHERE id = ?').run(reason, id);
 }
 
 export function unsuspendUser(id: number) {
-  db.prepare('UPDATE users SET isSuspended = 0, suspensionReason = NULL WHERE id = ?').run(id);
+  const database = getDB();
+  database.prepare('UPDATE users SET isSuspended = 0, suspensionReason = NULL WHERE id = ?').run(id);
 }
 
 export function deleteUser(id: number) {
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  const database = getDB();
+  database.prepare('DELETE FROM users WHERE id = ?').run(id);
 }
 
 export function getAllUsers() {
-  return db.prepare('SELECT id, email, username, name, isAdmin, isSuspended, suspensionReason, createdAt FROM users ORDER BY createdAt DESC').all() as any[];
+  const database = getDB();
+  return database.prepare('SELECT id, email, username, name, isAdmin, isSuspended, suspensionReason, createdAt FROM users ORDER BY createdAt DESC').all() as any[];
 }
 
 // Post operations
 export function createPost(title: string, description: string, content: string, logo: string, authorId: number) {
-  const stmt = db.prepare(`
+  const database = getDB();
+  const stmt = database.prepare(`
     INSERT INTO posts (title, description, content, logo, authorId)
     VALUES (?, ?, ?, ?, ?)
   `);
@@ -184,7 +210,8 @@ export function createPost(title: string, description: string, content: string, 
 }
 
 export function getPosts() {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT p.*, u.username, u.name, u.avatar,
       (SELECT COUNT(*) FROM comments WHERE postId = p.id) as commentCount,
       (SELECT GROUP_CONCAT(t.id || ':' || t.name, ',') FROM tags t 
@@ -197,7 +224,8 @@ export function getPosts() {
 }
 
 export function getPostById(id: string) {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT p.*, u.username, u.name, u.avatar,
       (SELECT GROUP_CONCAT(t.id || ':' || t.name, ',') FROM tags t 
        JOIN post_tags pt ON t.id = pt.tagId 
@@ -221,50 +249,55 @@ export function updatePost(id: string, data: { title?: string; description?: str
   if (fields.length === 0) return;
   
   values.push(id);
-  db.prepare(`UPDATE posts SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  const database = getDB();
+  database.prepare(`UPDATE posts SET ${fields.join(', ')} WHERE id = ?`).run(...values);
 }
 
 export function deletePost(id: string) {
-  db.prepare('DELETE FROM posts WHERE id = ?').run(id);
+  const database = getDB();
+  database.prepare('DELETE FROM posts WHERE id = ?').run(id);
 }
 
 export function incrementPostViews(id: string, userId?: number) {
+  const database = getDB();
   // Check if user has already viewed this post
   if (userId) {
-    const existingView = db.prepare('SELECT id FROM post_views WHERE postId = ? AND userId = ?').get(id, userId) as any;
+    const existingView = database.prepare('SELECT id FROM post_views WHERE postId = ? AND userId = ?').get(id, userId) as any;
     if (existingView) return; // Don't increment if already viewed
     // Record the view
-    db.prepare('INSERT INTO post_views (postId, userId) VALUES (?, ?)').run(id, userId);
+    database.prepare('INSERT INTO post_views (postId, userId) VALUES (?, ?)').run(id, userId);
   }
-  db.prepare('UPDATE posts SET views = views + 1 WHERE id = ?').run(id);
+  database.prepare('UPDATE posts SET views = views + 1 WHERE id = ?').run(id);
 }
 
 export function votePost(postId: string, userId: number, voteType: number) {
-  const existing = db.prepare('SELECT * FROM votes WHERE userId = ? AND postId = ?').get(userId, postId) as any;
+  const database = getDB();
+  const existing = database.prepare('SELECT * FROM votes WHERE userId = ? AND postId = ?').get(userId, postId) as any;
   
   if (existing) {
     if (existing.voteType === voteType) {
-      db.prepare('DELETE FROM votes WHERE id = ?').run(existing.id);
-      if (voteType === 1) db.prepare('UPDATE posts SET upvotes = upvotes - 1 WHERE id = ?').run(postId);
-      else db.prepare('UPDATE posts SET downvotes = downvotes - 1 WHERE id = ?').run(postId);
+      database.prepare('DELETE FROM votes WHERE id = ?').run(existing.id);
+      if (voteType === 1) database.prepare('UPDATE posts SET upvotes = upvotes - 1 WHERE id = ?').run(postId);
+      else database.prepare('UPDATE posts SET downvotes = downvotes - 1 WHERE id = ?').run(postId);
     } else {
-      db.prepare('UPDATE votes SET voteType = ? WHERE id = ?').run(voteType, existing.id);
+      database.prepare('UPDATE votes SET voteType = ? WHERE id = ?').run(voteType, existing.id);
       if (voteType === 1) {
-        db.prepare('UPDATE posts SET upvotes = upvotes + 1, downvotes = downvotes - 1 WHERE id = ?').run(postId);
+        database.prepare('UPDATE posts SET upvotes = upvotes + 1, downvotes = downvotes - 1 WHERE id = ?').run(postId);
       } else {
-        db.prepare('UPDATE posts SET downvotes = downvotes + 1, upvotes = upvotes - 1 WHERE id = ?').run(postId);
+        database.prepare('UPDATE posts SET downvotes = downvotes + 1, upvotes = upvotes - 1 WHERE id = ?').run(postId);
       }
     }
   } else {
-    db.prepare('INSERT INTO votes (userId, postId, voteType) VALUES (?, ?, ?)').run(userId, postId, voteType);
-    if (voteType === 1) db.prepare('UPDATE posts SET upvotes = upvotes + 1 WHERE id = ?').run(postId);
-    else db.prepare('UPDATE posts SET downvotes = downvotes + 1 WHERE id = ?').run(postId);
+    database.prepare('INSERT INTO votes (userId, postId, voteType) VALUES (?, ?, ?)').run(userId, postId, voteType);
+    if (voteType === 1) database.prepare('UPDATE posts SET upvotes = upvotes + 1 WHERE id = ?').run(postId);
+    else database.prepare('UPDATE posts SET downvotes = downvotes + 1 WHERE id = ?').run(postId);
   }
 }
 
 // Comment operations
 export function createComment(postId: string, authorId: number, content: string, parentId?: number) {
-  const stmt = db.prepare(`
+  const database = getDB();
+  const stmt = database.prepare(`
     INSERT INTO comments (postId, authorId, content, parentId)
     VALUES (?, ?, ?, ?)
   `);
@@ -273,7 +306,8 @@ export function createComment(postId: string, authorId: number, content: string,
 }
 
 export function getCommentsByPostId(postId: string) {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT c.*, u.username, u.name, u.avatar
     FROM comments c
     JOIN users u ON c.authorId = u.id
@@ -283,45 +317,52 @@ export function getCommentsByPostId(postId: string) {
 }
 
 export function getCommentById(id: number) {
-  return db.prepare('SELECT * FROM comments WHERE id = ?').get(id) as any;
+  const database = getDB();
+  return database.prepare('SELECT * FROM comments WHERE id = ?').get(id) as any;
 }
 
 export function updateComment(id: number, content: string) {
-  db.prepare('UPDATE comments SET content = ? WHERE id = ?').run(content, id);
+  const database = getDB();
+  database.prepare('UPDATE comments SET content = ? WHERE id = ?').run(content, id);
 }
 
 export function deleteComment(id: number) {
+  const database = getDB();
   // First, delete all replies recursively
-  const replies = db.prepare('SELECT id FROM comments WHERE parentId = ?').all(id) as any[];
+  const replies = database.prepare('SELECT id FROM comments WHERE parentId = ?').all(id) as any[];
   for (const reply of replies) {
     deleteComment(reply.id);
   }
   // Then delete the comment itself
-  db.prepare('DELETE FROM comments WHERE id = ?').run(id);
+  database.prepare('DELETE FROM comments WHERE id = ?').run(id);
 }
 
 export function likeComment(commentId: number, userId: number) {
-  const existing = db.prepare('SELECT * FROM comment_likes WHERE userId = ? AND commentId = ?').get(userId, commentId) as any;
+  const database = getDB();
+  const existing = database.prepare('SELECT * FROM comment_likes WHERE userId = ? AND commentId = ?').get(userId, commentId) as any;
   
   if (existing) {
-    db.prepare('DELETE FROM comment_likes WHERE id = ?').run(existing.id);
-    db.prepare('UPDATE comments SET likes = likes - 1 WHERE id = ?').run(commentId);
+    database.prepare('DELETE FROM comment_likes WHERE id = ?').run(existing.id);
+    database.prepare('UPDATE comments SET likes = likes - 1 WHERE id = ?').run(commentId);
   } else {
-    db.prepare('INSERT INTO comment_likes (userId, commentId) VALUES (?, ?)').run(userId, commentId);
-    db.prepare('UPDATE comments SET likes = likes + 1 WHERE id = ?').run(commentId);
+    database.prepare('INSERT INTO comment_likes (userId, commentId) VALUES (?, ?)').run(userId, commentId);
+    database.prepare('UPDATE comments SET likes = likes + 1 WHERE id = ?').run(commentId);
   }
 }
 
 export function getUserVote(userId: number, postId: string) {
-  return db.prepare('SELECT voteType FROM votes WHERE userId = ? AND postId = ?').get(userId, postId) as any;
+  const database = getDB();
+  return database.prepare('SELECT voteType FROM votes WHERE userId = ? AND postId = ?').get(userId, postId) as any;
 }
 
 export function getUserCommentLike(userId: number, commentId: number) {
-  return db.prepare('SELECT * FROM comment_likes WHERE userId = ? AND commentId = ?').get(userId, commentId) as any;
+  const database = getDB();
+  return database.prepare('SELECT * FROM comment_likes WHERE userId = ? AND commentId = ?').get(userId, commentId) as any;
 }
 
 export function getPostsByAuthor(authorId: number) {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT p.*, 
       (SELECT COUNT(*) FROM comments WHERE postId = p.id) as commentCount,
       (SELECT GROUP_CONCAT(t.id || ':' || t.name, ',') FROM tags t 
@@ -335,38 +376,46 @@ export function getPostsByAuthor(authorId: number) {
 
 // Tag operations
 export function createTag(name: string) {
-  const stmt = db.prepare('INSERT INTO tags (name) VALUES (?)');
+  const database = getDB();
+  const stmt = database.prepare('INSERT INTO tags (name) VALUES (?)');
   const result = stmt.run(name);
   return result.lastInsertRowid as number;
 }
 
 export function getAllTags() {
-  return db.prepare('SELECT * FROM tags ORDER BY name').all() as any[];
+  const database = getDB();
+  return database.prepare('SELECT * FROM tags ORDER BY name').all() as any[];
 }
 
 export function getTagById(id: number) {
-  return db.prepare('SELECT * FROM tags WHERE id = ?').get(id) as any;
+  const database = getDB();
+  return database.prepare('SELECT * FROM tags WHERE id = ?').get(id) as any;
 }
 
 export function updateTag(id: number, name: string) {
-  db.prepare('UPDATE tags SET name = ? WHERE id = ?').run(name, id);
+  const database = getDB();
+  database.prepare('UPDATE tags SET name = ? WHERE id = ?').run(name, id);
 }
 
 export function deleteTag(id: number) {
-  db.prepare('DELETE FROM tags WHERE id = ?').run(id);
+  const database = getDB();
+  database.prepare('DELETE FROM tags WHERE id = ?').run(id);
 }
 
 export function assignTagToPost(postId: string, tagId: number) {
-  const stmt = db.prepare('INSERT OR IGNORE INTO post_tags (postId, tagId) VALUES (?, ?)');
+  const database = getDB();
+  const stmt = database.prepare('INSERT OR IGNORE INTO post_tags (postId, tagId) VALUES (?, ?)');
   stmt.run(postId, tagId);
 }
 
 export function removeTagFromPost(postId: string, tagId: number) {
-  db.prepare('DELETE FROM post_tags WHERE postId = ? AND tagId = ?').run(postId, tagId);
+  const database = getDB();
+  database.prepare('DELETE FROM post_tags WHERE postId = ? AND tagId = ?').run(postId, tagId);
 }
 
 export function getPostTags(postId: string) {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT t.* FROM tags t
     JOIN post_tags pt ON t.id = pt.tagId
     WHERE pt.postId = ?
@@ -374,7 +423,8 @@ export function getPostTags(postId: string) {
 }
 
 export function getPostsByTag(tagId: number) {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT p.*, u.username, u.name, u.avatar,
       (SELECT COUNT(*) FROM comments WHERE postId = p.id) as commentCount,
       (SELECT GROUP_CONCAT(t.id || ':' || t.name, ',') FROM tags t 
@@ -389,7 +439,8 @@ export function getPostsByTag(tagId: number) {
 }
 
 export function searchPosts(query: string) {
-  return db.prepare(`
+  const database = getDB();
+  return database.prepare(`
     SELECT p.*, u.username, u.name, u.avatar,
       (SELECT COUNT(*) FROM comments WHERE postId = p.id) as commentCount,
       (SELECT GROUP_CONCAT(t.id || ':' || t.name, ',') FROM tags t 
@@ -403,8 +454,9 @@ export function searchPosts(query: string) {
 }
 
 export function getFilteredPosts(searchQuery?: string, tagId?: number) {
+  const database = getDB();
   if (searchQuery && tagId) {
-    return db.prepare(`
+    return database.prepare(`
       SELECT p.*, u.username, u.name, u.avatar,
         (SELECT COUNT(*) FROM comments WHERE postId = p.id) as commentCount,
         (SELECT GROUP_CONCAT(t.id || ':' || t.name, ',') FROM tags t 
@@ -425,5 +477,5 @@ export function getFilteredPosts(searchQuery?: string, tagId?: number) {
   }
 }
 
-// Initialize DB on import
-initDB();
+// Initialize DB on first use (lazy initialization)
+// initDB() will be called automatically when getDB() is first used

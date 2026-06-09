@@ -3,6 +3,7 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/Navbar";
+import TurnstileGate from "@/components/TurnstileGate";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 
@@ -28,6 +29,7 @@ export default function RootLayout({
       </head>
       <body className={`${outfit.variable} font-sans antialiased`}>
         <ThemeProvider>
+          <TurnstileGate />
           <div id="toast-container" />
           <Navbar />
           <main className="min-h-screen">
